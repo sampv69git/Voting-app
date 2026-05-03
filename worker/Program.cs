@@ -16,7 +16,8 @@ namespace Worker
         {
             try
             {
-                var dbConnString = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "Server=db;Username=postgres;Password=postgres;";
+                var rawDbUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "Server=db;Username=postgres;Password=postgres;";
+                var dbConnString = ConvertPostgresUrl(rawDbUrl);
                 var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST") ?? "redis";
                 
                 var pgsql = OpenDbConnection(dbConnString);
@@ -151,6 +152,42 @@ namespace Worker
             finally
             {
                 command.Dispose();
+            }
+        }
+        private static string ConvertPostgresUrl(string url)
+        {
+            // If it's already in ADO.NET format (contains '='), return as-is
+            if (url.Contains("="))
+            {
+                return url;
+            }
+
+            // Parse postgres://user:password@host:port/database format
+            try
+            {
+                var uri = new Uri(url);
+                var userInfo = uri.UserInfo.Split(':');
+                var username = userInfo[0];
+                var password = userInfo.Length > 1 ? userInfo[1] : "";
+                var host = uri.Host;
+                var port = uri.Port > 0 ? uri.Port : 5432;
+                var database = uri.AbsolutePath.TrimStart('/');
+
+                var connStr = $"Host={host};Port={port};Username={username};Password={password};Database={database}";
+
+                // Add SSL mode for cloud providers
+                if (!host.Equals("db") && !host.Equals("localhost") && !host.Equals("127.0.0.1"))
+                {
+                    connStr += ";SSL Mode=Require;Trust Server Certificate=true";
+                }
+
+                Console.WriteLine($"Parsed DATABASE_URL -> Host={host}, Port={port}, Database={database}");
+                return connStr;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to parse DATABASE_URL: {ex.Message}, using raw value");
+                return url;
             }
         }
     }

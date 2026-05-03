@@ -1,5 +1,15 @@
+databases:
+  - name: voting-app-db
+    databaseName: votingdb
+    user: dbuser
+
 services:
-  # 1. Vote App (Python)
+  # 1. Managed Redis
+  - type: redis
+    name: voting-app-redis
+    plan: free
+
+  # 2. Vote App (Python)
   - type: web
     name: voting-app-vote
     env: docker
@@ -12,7 +22,7 @@ services:
           name: voting-app-redis
           envVarKey: HOST
 
-  # 2. Result App (Node.js)
+  # 3. Result App (Node.js)
   - type: web
     name: voting-app-result
     env: docker
@@ -20,12 +30,11 @@ services:
     dockerfilePath: ./result/Dockerfile
     envVars:
       - key: DATABASE_URL
-        fromService:
-          type: postgres
+        fromDatabase:
           name: voting-app-db
-          envVarKey: DATABASE_URL
+          property: connectionString
 
-  # 3. Worker App (.NET)
+  # 4. Worker App (.NET)
   - type: pserv
     name: voting-app-worker
     env: docker
@@ -38,19 +47,6 @@ services:
           name: voting-app-redis
           envVarKey: HOST
       - key: DATABASE_URL
-        fromService:
-          type: postgres
+        fromDatabase:
           name: voting-app-db
-          envVarKey: DATABASE_URL
-
-  # 4. Managed Redis
-  - type: redis
-    name: voting-app-redis
-    plan: free
-
-  # 5. Managed PostgreSQL
-  - type: postgres
-    name: voting-app-db
-    plan: free
-    databaseName: postgres
-    user: postgres
+          property: connectionString

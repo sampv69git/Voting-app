@@ -1,0 +1,56 @@
+services:
+  # 1. Vote App (Python)
+  - type: web
+    name: voting-app-vote
+    env: docker
+    dockerContext: ./vote
+    dockerfilePath: ./vote/Dockerfile
+    envVars:
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: voting-app-redis
+          envVarKey: HOST
+
+  # 2. Result App (Node.js)
+  - type: web
+    name: voting-app-result
+    env: docker
+    dockerContext: ./result
+    dockerfilePath: ./result/Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          type: postgres
+          name: voting-app-db
+          envVarKey: DATABASE_URL
+
+  # 3. Worker App (.NET)
+  - type: pserv
+    name: voting-app-worker
+    env: docker
+    dockerContext: ./worker
+    dockerfilePath: ./worker/Dockerfile
+    envVars:
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: voting-app-redis
+          envVarKey: HOST
+      - key: DATABASE_URL
+        fromService:
+          type: postgres
+          name: voting-app-db
+          envVarKey: DATABASE_URL
+
+  # 4. Managed Redis
+  - type: redis
+    name: voting-app-redis
+    plan: free
+
+  # 5. Managed PostgreSQL
+  - type: postgres
+    name: voting-app-db
+    plan: free
+    databaseName: postgres
+    user: postgres

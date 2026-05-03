@@ -1,49 +1,547 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>{{option_a}} vs {{option_b}}!</title>
+    <title>⚔️ {{option_a}} vs {{option_b}} — Battle Arena!</title>
+    <meta name="description" content="Cast your vote in the ultimate showdown! Pick your champion in this epic battle arena.">
     <base href="/index.html">
-    <meta name = "viewport" content = "width=device-width, initial-scale = 1.0">
-    <meta name="keywords" content="docker-compose, docker, stack">
-    <meta name="author" content="Tutum dev team">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="keywords" content="voting, battle, arena, game">
+    <meta name="author" content="Vote Arena">
     <link rel='stylesheet' href="{{ url_for('static',filename='stylesheets/style.css') }}" />
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
   </head>
   <body>
+
+    <!-- Animated Background Elements -->
+    <div class="grid-bg"></div>
+    <div class="particles" id="particles"></div>
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Sound Toggle -->
+    <div class="sound-toggle" id="soundToggle" title="Toggle Sound Effects">🔊</div>
+
+    <!-- Streak Counter -->
+    <div class="streak-display" id="streakDisplay" style="display:none;">
+      <span class="streak-fire">🔥</span>
+      <span class="streak-count" id="streakCount">0</span>
+      <span class="streak-label">streak</span>
+    </div>
+
     <div id="content-container">
       <div id="content-container-center">
+
+        <!-- Header -->
+        <div class="header-section">
+          <div class="logo-icon">⚔️</div>
+          <h1>Vote Arena</h1>
+          <p class="subtitle">Choose Your Champion</p>
+        </div>
+
+        <!-- Live Score Bar -->
+        <div class="score-bar" id="scoreBar">
+          <span class="score-label">🏆 Votes Cast</span>
+          <span class="score-divider"></span>
+          <span class="score-value" id="totalVotes">0</span>
+          <span class="score-divider"></span>
+          <span class="score-label">⏱️ <span id="sessionTimer">00:00</span></span>
+        </div>
+
+        <!-- Hidden original form (still submits to backend) -->
         <h3>{{option_a}} vs {{option_b}}!</h3>
         <form id="choice" name='form' method="POST" action="/">
           <button id="a" type="submit" name="vote" class="a" value="a">{{option_a}}</button>
           <button id="b" type="submit" name="vote" class="b" value="b">{{option_b}}</button>
         </form>
+
+        <!-- Battle Arena Cards -->
+        <div class="battle-arena" id="battleArena">
+
+          <!-- Card A -->
+          <div class="vote-card card-a" id="voteCardA" data-vote="a">
+            <div class="power-tooltip">Click to vote!</div>
+            <div class="card-inner">
+              <div class="card-emoji" id="emojiA">🐱</div>
+              <div class="card-name" id="nameA">{{option_a}}</div>
+              <div class="card-tagline" id="taglineA">The internet's favorite overlords</div>
+              <div class="card-stats">
+                <div class="stat-item">
+                  <div class="stat-val" id="powerA">87</div>
+                  <div class="stat-lbl">Power</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-val" id="charmA">95</div>
+                  <div class="stat-lbl">Charm</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-val" id="chaosA">99</div>
+                  <div class="stat-lbl">Chaos</div>
+                </div>
+              </div>
+              <button type="button" class="vote-btn" id="voteBtnA">
+                ⚡ Vote {{option_a}}
+              </button>
+            </div>
+          </div>
+
+          <!-- VS Badge -->
+          <div class="vs-badge">
+            <div class="vs-ring"></div>
+            <div class="vs-ring"></div>
+            <span class="vs-text">VS</span>
+          </div>
+
+          <!-- Card B -->
+          <div class="vote-card card-b" id="voteCardB" data-vote="b">
+            <div class="power-tooltip">Click to vote!</div>
+            <div class="card-inner">
+              <div class="card-emoji" id="emojiB">🐶</div>
+              <div class="card-name" id="nameB">{{option_b}}</div>
+              <div class="card-tagline" id="taglineB">Humanity's most loyal companions</div>
+              <div class="card-stats">
+                <div class="stat-item">
+                  <div class="stat-val" id="powerB">92</div>
+                  <div class="stat-lbl">Power</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-val" id="charmB">88</div>
+                  <div class="stat-lbl">Charm</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-val" id="chaosB">75</div>
+                  <div class="stat-lbl">Chaos</div>
+                </div>
+              </div>
+              <button type="button" class="vote-btn" id="voteBtnB">
+                ⚡ Vote {{option_b}}
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Category Selector -->
+        <div class="categories-section">
+          <div class="categories-title">🎮 Switch Battle Category</div>
+          <div class="categories-grid" id="categoriesGrid">
+            <div class="category-chip active" data-a="Cats" data-b="Dogs" data-emoji-a="🐱" data-emoji-b="🐶" data-tag-a="The internet's favorite overlords" data-tag-b="Humanity's most loyal companions">🐾 Cats vs Dogs</div>
+            <div class="category-chip" data-a="Pirates" data-b="Ninjas" data-emoji-a="🏴‍☠️" data-emoji-b="🥷" data-tag-a="Rulers of the seven seas" data-tag-b="Silent shadow warriors">⚔️ Pirates vs Ninjas</div>
+            <div class="category-chip" data-a="Pizza" data-b="Tacos" data-emoji-a="🍕" data-emoji-b="🌮" data-tag-a="The circular perfection" data-tag-b="Portable flavor explosions">🍔 Pizza vs Tacos</div>
+            <div class="category-chip" data-a="Marvel" data-b="DC" data-emoji-a="🦸" data-emoji-b="🦇" data-tag-a="Earth's mightiest heroes" data-tag-b="The dark knights of justice">💥 Marvel vs DC</div>
+            <div class="category-chip" data-a="Coffee" data-b="Tea" data-emoji-a="☕" data-emoji-b="🍵" data-tag-a="The elixir of productivity" data-tag-b="The zen of tranquility">🫖 Coffee vs Tea</div>
+            <div class="category-chip" data-a="Mountains" data-b="Beach" data-emoji-a="🏔️" data-emoji-b="🏖️" data-tag-a="Majestic peaks of adventure" data-tag-b="Sun, sand, and serenity">🌊 Mountains vs Beach</div>
+            <div class="category-chip" data-a="Morning" data-b="Night" data-emoji-a="🌅" data-emoji-b="🌙" data-tag-a="Rise and grind energy" data-tag-b="When creativity comes alive">🌗 Morning vs Night</div>
+            <div class="category-chip" data-a="Robots" data-b="Aliens" data-emoji-a="🤖" data-emoji-b="👽" data-tag-a="Silicon-powered precision" data-tag-b="Cosmic mystery beings">🛸 Robots vs Aliens</div>
+          </div>
+        </div>
+
+        <!-- Fun Fact Ticker -->
+        <div class="fact-ticker" id="factTicker">
+          <div class="fact-content">
+            <div class="fact-label">💡 Fun Fact</div>
+            <span id="factText">Cats spend 70% of their lives sleeping. Living the dream!</span>
+          </div>
+        </div>
+
+        <!-- Tip -->
         <div id="tip">
-          (Tip: you can change your vote)
+          💡 Tip: You can change your vote anytime • Switch categories to explore more battles!
         </div>
+
+        <!-- Hostname -->
         <div id="hostname">
-          Processed by container ID {{hostname}}
+          ⚙️ Processed by container {{hostname}}
         </div>
+
       </div>
     </div>
-    <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
 
-    {% if vote %}
     <script>
-      var vote = "{{vote}}";
+    // ===============================
+    //  GAME STATE
+    // ===============================
+    const state = {
+      totalVotes: parseInt(localStorage.getItem('voteArena_total') || '0'),
+      streak: parseInt(localStorage.getItem('voteArena_streak') || '0'),
+      soundOn: localStorage.getItem('voteArena_sound') !== 'off',
+      currentCategory: 'Cats vs Dogs',
+      sessionStart: Date.now(),
+      voted: false
+    };
 
-      if(vote == "a"){
-        $(".a").prop('disabled', true);
-        $(".a").html('{{option_a}} <i class="fa fa-check-circle"></i>');
-        $(".b").css('opacity','0.5');
+    // ===============================
+    //  PARTICLES
+    // ===============================
+    function createParticles() {
+      const container = document.getElementById('particles');
+      const colors = ['#ff6b6b', '#4ecdc4', '#ffd93d', '#a855f7', '#3b82f6'];
+      for (let i = 0; i < 30; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        const size = Math.random() * 6 + 2;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        p.style.cssText = `
+          width: ${size}px; height: ${size}px;
+          background: ${color};
+          box-shadow: 0 0 ${size * 3}px ${color};
+          left: ${Math.random() * 100}%;
+          animation-duration: ${Math.random() * 10 + 8}s;
+          animation-delay: ${Math.random() * 10}s;
+        `;
+        container.appendChild(p);
       }
-      if(vote == "b"){
-        $(".b").prop('disabled', true);
-        $(".b").html('{{option_b}} <i class="fa fa-check-circle"></i>');
-        $(".a").css('opacity','0.5');
+    }
+    createParticles();
+
+    // ===============================
+    //  SESSION TIMER
+    // ===============================
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - state.sessionStart) / 1000);
+      const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const secs = String(elapsed % 60).padStart(2, '0');
+      document.getElementById('sessionTimer').textContent = `${mins}:${secs}`;
+    }
+    setInterval(updateTimer, 1000);
+
+    // ===============================
+    //  SOUND EFFECTS (Web Audio API)
+    // ===============================
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playVoteSound() {
+      if (!state.soundOn) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+      osc.frequency.exponentialRampToValueAtTime(783.99, audioCtx.currentTime + 0.1); // G5
+      osc.frequency.exponentialRampToValueAtTime(1046.5, audioCtx.currentTime + 0.2); // C6
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.4);
+    }
+
+    function playClickSound() {
+      if (!state.soundOn) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    // Sound toggle
+    const soundToggle = document.getElementById('soundToggle');
+    soundToggle.textContent = state.soundOn ? '🔊' : '🔇';
+    soundToggle.addEventListener('click', () => {
+      state.soundOn = !state.soundOn;
+      soundToggle.textContent = state.soundOn ? '🔊' : '🔇';
+      localStorage.setItem('voteArena_sound', state.soundOn ? 'on' : 'off');
+      if (state.soundOn) audioCtx.resume();
+    });
+
+    // ===============================
+    //  CONFETTI
+    // ===============================
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const pieces = [];
+      const colors = ['#ff6b6b', '#4ecdc4', '#ffd93d', '#a855f7', '#3b82f6', '#f472b6', '#34d399'];
+
+      for (let i = 0; i < 120; i++) {
+        pieces.push({
+          x: canvas.width / 2 + (Math.random() - 0.5) * 200,
+          y: canvas.height / 2,
+          vx: (Math.random() - 0.5) * 20,
+          vy: -(Math.random() * 18 + 5),
+          w: Math.random() * 10 + 4,
+          h: Math.random() * 6 + 2,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 15,
+          gravity: 0.4 + Math.random() * 0.2,
+          opacity: 1,
+          decay: 0.005 + Math.random() * 0.008
+        });
       }
-    </script>
+
+      let frame = 0;
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+
+        pieces.forEach(p => {
+          if (p.opacity <= 0) return;
+          alive = true;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += p.gravity;
+          p.vx *= 0.99;
+          p.rotation += p.rotSpeed;
+          p.opacity -= p.decay;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rotation * Math.PI / 180);
+          ctx.globalAlpha = Math.max(0, p.opacity);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.restore();
+        });
+
+        frame++;
+        if (alive && frame < 180) {
+          requestAnimationFrame(animate);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      animate();
+    }
+
+    // ===============================
+    //  VOTE HANDLING
+    // ===============================
+    function castVote(choice) {
+      // Submit the hidden form
+      const form = document.getElementById('choice');
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'vote';
+      input.value = choice;
+      form.appendChild(input);
+
+      // Visual feedback first
+      const cardA = document.getElementById('voteCardA');
+      const cardB = document.getElementById('voteCardB');
+
+      if (choice === 'a') {
+        cardA.classList.add('voted');
+        cardB.classList.add('dimmed');
+        document.getElementById('voteBtnA').innerHTML = '✅ Voted!';
+        document.getElementById('voteBtnA').disabled = true;
+      } else {
+        cardB.classList.add('voted');
+        cardA.classList.add('dimmed');
+        document.getElementById('voteBtnB').innerHTML = '✅ Voted!';
+        document.getElementById('voteBtnB').disabled = true;
+      }
+
+      // Update stats
+      state.totalVotes++;
+      state.streak++;
+      localStorage.setItem('voteArena_total', state.totalVotes);
+      localStorage.setItem('voteArena_streak', state.streak);
+      updateScoreDisplay();
+
+      // Effects
+      playVoteSound();
+      launchConfetti();
+
+      // Show streak
+      const streakEl = document.getElementById('streakDisplay');
+      streakEl.style.display = 'flex';
+      document.getElementById('streakCount').textContent = state.streak;
+
+      state.voted = true;
+
+      // Submit form after animation
+      setTimeout(() => {
+        form.submit();
+      }, 800);
+    }
+
+    // Button click handlers
+    document.getElementById('voteBtnA').addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!state.voted) castVote('a');
+    });
+
+    document.getElementById('voteBtnB').addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!state.voted) castVote('b');
+    });
+
+    // Card click handlers (click anywhere on card)
+    document.getElementById('voteCardA').addEventListener('click', (e) => {
+      if (e.target.classList.contains('vote-btn') || e.target.closest('.vote-btn')) return;
+      if (!state.voted) castVote('a');
+    });
+
+    document.getElementById('voteCardB').addEventListener('click', (e) => {
+      if (e.target.classList.contains('vote-btn') || e.target.closest('.vote-btn')) return;
+      if (!state.voted) castVote('b');
+    });
+
+    // ===============================
+    //  SCORE DISPLAY
+    // ===============================
+    function updateScoreDisplay() {
+      const el = document.getElementById('totalVotes');
+      el.textContent = state.totalVotes;
+      el.style.transform = 'scale(1.3)';
+      setTimeout(() => el.style.transform = 'scale(1)', 200);
+    }
+    updateScoreDisplay();
+
+    // Show streak on load
+    if (state.streak > 0) {
+      document.getElementById('streakDisplay').style.display = 'flex';
+      document.getElementById('streakCount').textContent = state.streak;
+    }
+
+    // ===============================
+    //  CATEGORY SWITCHING
+    // ===============================
+    const categoryChips = document.querySelectorAll('.category-chip');
+    categoryChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        playClickSound();
+
+        // Update active state
+        categoryChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+
+        // Update card content with animation
+        const data = chip.dataset;
+        const arena = document.getElementById('battleArena');
+        arena.style.opacity = '0';
+        arena.style.transform = 'scale(0.95)';
+
+        setTimeout(() => {
+          document.getElementById('emojiA').textContent = data.emojiA;
+          document.getElementById('emojiB').textContent = data.emojiB;
+          document.getElementById('nameA').textContent = data.a;
+          document.getElementById('nameB').textContent = data.b;
+          document.getElementById('taglineA').textContent = data.tagA;
+          document.getElementById('taglineB').textContent = data.tagB;
+          document.getElementById('voteBtnA').innerHTML = `⚡ Vote ${data.a}`;
+          document.getElementById('voteBtnB').innerHTML = `⚡ Vote ${data.b}`;
+
+          // Randomize stats for fun
+          document.getElementById('powerA').textContent = Math.floor(Math.random() * 30 + 70);
+          document.getElementById('charmA').textContent = Math.floor(Math.random() * 30 + 70);
+          document.getElementById('chaosA').textContent = Math.floor(Math.random() * 30 + 70);
+          document.getElementById('powerB').textContent = Math.floor(Math.random() * 30 + 70);
+          document.getElementById('charmB').textContent = Math.floor(Math.random() * 30 + 70);
+          document.getElementById('chaosB').textContent = Math.floor(Math.random() * 30 + 70);
+
+          // Reset voted state
+          document.getElementById('voteCardA').classList.remove('voted', 'dimmed');
+          document.getElementById('voteCardB').classList.remove('voted', 'dimmed');
+          document.getElementById('voteBtnA').disabled = false;
+          document.getElementById('voteBtnB').disabled = false;
+          state.voted = false;
+
+          arena.style.opacity = '1';
+          arena.style.transform = 'scale(1)';
+        }, 300);
+
+        // Update the hidden form values
+        document.querySelector('#choice .a').value = 'a';
+        document.querySelector('#choice .b').value = 'b';
+
+        state.currentCategory = `${data.a} vs ${data.b}`;
+        showRandomFact();
+      });
+    });
+
+    // ===============================
+    //  FUN FACTS
+    // ===============================
+    const funFacts = [
+      "Cats spend 70% of their lives sleeping. Living the dream! 😴",
+      "Dogs can understand up to 250 words and gestures. Smart bois! 🧠",
+      "Pirates actually had democratic systems on their ships! 🏴‍☠️",
+      "Ninjas were often farmers by day. The ultimate side hustle! 🌾",
+      "The world's largest pizza was 13,580 sq ft! 🍕",
+      "Tacos date back to 18th century Mexican silver mines! ⛏️",
+      "Marvel's first comic was published in 1939! 📚",
+      "Batman was created in 1939, just months after Superman! 🦇",
+      "Coffee was discovered by goats in Ethiopia! 🐐",
+      "Tea was accidentally invented in 2737 BC! 🫖",
+      "Mount Everest grows about 4mm every year! 🏔️",
+      "The longest beach in the world is 150 miles long! 🏖️",
+      "Your brain is more active at night than during the day! 🌙",
+      "Morning people have been shown to be more persistent! 🌅",
+      "The word 'robot' comes from Czech for forced labor! 🤖",
+      "We've been sending signals into space since 1974! 👽",
+      "This voting app runs on Docker containers! 🐳",
+      "You're voting across a distributed microservices architecture! ⚡",
+    ];
+
+    function showRandomFact() {
+      const el = document.getElementById('factText');
+      el.style.opacity = '0';
+      setTimeout(() => {
+        el.textContent = funFacts[Math.floor(Math.random() * funFacts.length)];
+        el.style.opacity = '1';
+      }, 300);
+    }
+
+    // Auto-rotate facts
+    setInterval(showRandomFact, 8000);
+
+    // ===============================
+    //  HANDLE PRE-VOTED STATE
+    // ===============================
+    {% if vote %}
+    (function() {
+      const vote = "{{vote}}";
+      state.voted = true;
+
+      if (vote === "a") {
+        document.getElementById('voteCardA').classList.add('voted');
+        document.getElementById('voteCardB').classList.add('dimmed');
+        document.getElementById('voteBtnA').innerHTML = '✅ Voted!';
+        document.getElementById('voteBtnA').disabled = true;
+      } else if (vote === "b") {
+        document.getElementById('voteCardB').classList.add('voted');
+        document.getElementById('voteCardA').classList.add('dimmed');
+        document.getElementById('voteBtnB').innerHTML = '✅ Voted!';
+        document.getElementById('voteBtnB').disabled = true;
+      }
+    })();
     {% endif %}
+
+    // ===============================
+    //  KEYBOARD SHORTCUTS
+    // ===============================
+    document.addEventListener('keydown', (e) => {
+      if (state.voted) return;
+      if (e.key === '1' || e.key === 'a' || e.key === 'ArrowLeft') {
+        castVote('a');
+      } else if (e.key === '2' || e.key === 'b' || e.key === 'ArrowRight') {
+        castVote('b');
+      }
+    });
+
+    // ===============================
+    //  WINDOW RESIZE (Confetti canvas)
+    // ===============================
+    window.addEventListener('resize', () => {
+      const canvas = document.getElementById('confetti-canvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    // Add transition to battle arena for smooth category switching
+    document.getElementById('battleArena').style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    document.getElementById('factText').style.transition = 'opacity 0.3s ease';
+
+    </script>
+
   </body>
 </html>

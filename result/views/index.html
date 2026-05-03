@@ -1,41 +1,72 @@
 <!DOCTYPE html>
-<html ng-app="catsvsdogs">
+<html lang="en" ng-app="catsvsdogs">
   <head>
     <meta charset="utf-8">
-    <title>Cats vs Dogs -- Result</title>
+    <title>🏆 Vote Arena — Live Results</title>
+    <meta name="description" content="Watch the battle unfold in real-time! Live voting results for the ultimate showdown.">
     <base href="/index.html">
-    <meta name = "viewport" content = "width=device-width, initial-scale = 1.0">
-    <meta name="keywords" content="docker-compose, docker, stack">
-    <meta name="author" content="Docker">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="keywords" content="voting, results, live, battle">
+    <meta name="author" content="Vote Arena">
     <link rel='stylesheet' href='/stylesheets/style.css' />
   </head>
-  <body ng-controller="statsCtrl" >
-     <div id="background-stats">
-       <div id="background-stats-1">
-       </div><!--
-      --><div id="background-stats-2">
-      </div>
+  <body ng-controller="statsCtrl">
+
+    <!-- Background Vote Ratio -->
+    <div id="background-stats">
+      <div id="background-stats-1"></div><!--
+      --><div id="background-stats-2"></div>
     </div>
+
     <div id="content-container">
       <div id="content-container-center">
+
+        <!-- Header -->
+        <div class="result-header">
+          <div class="logo-icon">🏆</div>
+          <h1>Battle Results</h1>
+          <p class="subtitle">Live Scoreboard</p>
+        </div>
+
+        <!-- Scoreboard -->
         <div id="choice">
           <div class="choice cats">
+            <span class="choice-emoji">🐱</span>
             <div class="label">Cats</div>
             <div class="stat">{{aPercent | number:1}}%</div>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="progressA" style="width: 50%"></div>
+            </div>
           </div>
-          <div class="divider"></div>
+
+          <div class="divider">
+            <div class="vs-badge-result">
+              <div class="vs-ring"></div>
+              <div class="vs-ring"></div>
+              <span class="vs-text">VS</span>
+            </div>
+          </div>
+
           <div class="choice dogs">
+            <span class="choice-emoji">🐶</span>
             <div class="label">Dogs</div>
             <div class="stat">{{bPercent | number:1}}%</div>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="progressB" style="width: 50%"></div>
+            </div>
           </div>
         </div>
+
       </div>
     </div>
+
+    <!-- Vote Count -->
     <div id="result">
-      <span ng-if="total == 0">No votes yet</span>
-      <span ng-if="total == 1">{{total}} vote</span>
-      <span ng-if="total >= 2">{{total}} votes</span>
+      <span ng-if="total == 0">⏳ Waiting for votes...</span>
+      <span ng-if="total == 1">🎯 {{total}} vote cast</span>
+      <span ng-if="total >= 2">🔥 {{total}} votes cast</span>
     </div>
+
     <script src="socket.io.js"></script>
     <script src="angular.min.js"></script>
     <script src="app.js"></script>

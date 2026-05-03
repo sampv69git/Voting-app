@@ -19,6 +19,15 @@ app.controller('statsCtrl', function($scope){
        bg1.style.width = percentages.a + "%";
        bg2.style.width = percentages.b + "%";
 
+       // Update progress bars
+       var progressA = document.getElementById('progressA');
+       var progressB = document.getElementById('progressB');
+       if (progressA) progressA.style.width = percentages.a + "%";
+       if (progressB) progressB.style.width = percentages.b + "%";
+
+       // Add/remove crown for winner
+       updateCrown(percentages.a, percentages.b);
+
        $scope.$apply(function () {
          $scope.aPercent = percentages.a;
          $scope.bPercent = percentages.b;
@@ -47,4 +56,22 @@ function getPercentages(a, b) {
   }
 
   return result;
+}
+
+// Crown animation for the winning side
+function updateCrown(aPercent, bPercent) {
+  // Remove existing crowns
+  document.querySelectorAll('.crown').forEach(function(el) { el.remove(); });
+
+  if (aPercent === bPercent) return;
+
+  var winner = aPercent > bPercent ? '.cats' : '.dogs';
+  var winnerEl = document.querySelector(winner);
+  if (winnerEl && !winnerEl.querySelector('.crown')) {
+    var crown = document.createElement('span');
+    crown.className = 'crown';
+    crown.textContent = '👑';
+    winnerEl.style.position = 'relative';
+    winnerEl.appendChild(crown);
+  }
 }

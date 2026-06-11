@@ -18,8 +18,14 @@ app.logger.setLevel(logging.INFO)
 
 def get_redis():
     if not hasattr(g, 'redis'):
+        redis_url = os.getenv('REDIS_URL')
         redis_host = os.getenv('REDIS_HOST', 'redis')
-        g.redis = Redis(host=redis_host, db=0, socket_timeout=5)
+        if redis_url:
+            # Full Redis URL provided (e.g. from Railway/Render managed Redis)
+            g.redis = Redis.from_url(redis_url, socket_timeout=5)
+        else:
+            # Plain hostname (local Docker compose)
+            g.redis = Redis(host=redis_host, db=0, socket_timeout=5)
     return g.redis
 
 @app.route("/", methods=['POST','GET'])

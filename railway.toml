@@ -1,0 +1,20 @@
+# Railway deployment configuration
+# Each service must be added in the Railway dashboard and linked to this repo.
+# Set the following environment variables per service in the Railway dashboard:
+#
+# vote service:
+#   REDIS_URL  -> from your Railway Redis service (copy the Redis URL)
+#
+# result service:
+#   DATABASE_URL -> from your Railway Postgres service (copy the Postgres URL)
+#
+# worker service:
+#   REDIS_URL    -> from your Railway Redis service
+#   DATABASE_URL -> from your Railway Postgres service
+
+[build]
+builder = "dockerfile"
+
+[deploy]
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10

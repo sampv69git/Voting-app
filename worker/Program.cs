@@ -18,13 +18,18 @@ namespace Worker
             {
                 var rawDbUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "Server=db;Username=postgres;Password=postgres;";
                 var dbConnString = ConvertPostgresUrl(rawDbUrl);
+
+                // Railway injects REDIS_URL as a full redis:// URL; fall back to REDIS_HOST for local Docker
+                var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL");
                 var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST") ?? "redis";
 
                 Console.WriteLine($"Connecting to DB...");
                 var pgsql = OpenDbConnection(dbConnString);
 
-                Console.WriteLine($"Connecting to Redis at {redisHost}...");
-                var redisConn = OpenRedisConnection(redisHost);
+                Console.WriteLine($"Connecting to Redis...");
+                var redisConn = string.IsNullOrEmpty(redisUrl)
+                    ? OpenRedisConnection(redisHost)
+                    : OpenRedisConnectionByUrl(redisUrl);
                 var redis = redisConn.GetDatabase();
 
                 var definition = new { vote = "", voter_id = "" };
@@ -37,7 +42,9 @@ namespace Worker
                     if (redisConn == null || !redisConn.IsConnected)
                     {
                         Console.WriteLine("Reconnecting Redis");
-                        redisConn = OpenRedisConnection(redisHost);
+                        redisConn = string.IsNullOrEmpty(redisUrl)
+                            ? OpenRedisConnection(redisHost)
+                            : OpenRedisConnectionByUrl(redisUrl);
                         redis = redisConn.GetDatabase();
                     }
 
@@ -96,6 +103,25 @@ namespace Worker
             }
 
             return connection;
+        }
+
+        private static ConnectionMultiplexer OpenRedisConnectionByUrl(string redisUrl)
+        {
+            while (true)
+            {
+                try
+                {
+                    Console.Error.WriteLine($"Connecting to redis via URL");
+                    var options = ConfigurationOptions.Parse(redisUrl);
+                    options.AbortOnConnectFail = false;
+                    return ConnectionMultiplexer.Connect(options);
+                }
+                catch (RedisConnectionException)
+                {
+                    Console.Error.WriteLine("Waiting for redis");
+                    Thread.Sleep(1000);
+                }
+            }
         }
 
         private static ConnectionMultiplexer OpenRedisConnection(string hostname)

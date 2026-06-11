@@ -31,11 +31,15 @@ def hello():
     vote = None
 
     if request.method == 'POST':
-        redis = get_redis()
         vote = request.form['vote']
-        app.logger.info('Received vote for %s', vote)
-        data = json.dumps({'voter_id': voter_id, 'vote': vote})
-        redis.rpush('votes', data)
+        try:
+            redis = get_redis()
+            app.logger.info('Received vote for %s', vote)
+            data = json.dumps({'voter_id': voter_id, 'vote': vote})
+            redis.rpush('votes', data)
+        except Exception as e:
+            app.logger.error('Failed to connect to Redis: %s', str(e))
+            # Still show the page with the vote selection even if Redis is down
 
     resp = make_response(render_template(
         'index.html',

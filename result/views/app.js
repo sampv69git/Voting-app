@@ -43,6 +43,9 @@ app.controller('statsCtrl', function($scope){
   socket.on('message',function(data){
     init();
   });
+  // Also initialize immediately in case the message event was missed
+  // (e.g., user opens the results tab after the initial connection)
+  init();
 });
 
 function getPercentages(a, b) {

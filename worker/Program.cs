@@ -107,21 +107,75 @@ namespace Worker
 
         private static ConnectionMultiplexer OpenRedisConnectionByUrl(string redisUrl)
         {
+            // StackExchange.Redis does NOT understand redis:// URLs.
+            // Parse the URL manually and build ConfigurationOptions.
+            var options = BuildRedisOptions(redisUrl);
+
             while (true)
             {
                 try
                 {
-                    Console.Error.WriteLine($"Connecting to redis via URL");
-                    var options = ConfigurationOptions.Parse(redisUrl);
-                    options.AbortOnConnectFail = false;
+                    Console.Error.WriteLine($"Connecting to redis at {string.Join(",", options.EndPoints)}");
                     return ConnectionMultiplexer.Connect(options);
                 }
-                catch (RedisConnectionException)
+                catch (RedisConnectionException ex)
                 {
-                    Console.Error.WriteLine("Waiting for redis");
+                    Console.Error.WriteLine($"Waiting for redis: {ex.Message}");
                     Thread.Sleep(1000);
                 }
             }
+        }
+
+        private static ConfigurationOptions BuildRedisOptions(string redisUrl)
+        {
+            // Parse redis://user:password@host:port or rediss://... (TLS)
+            var uri = new Uri(redisUrl);
+
+            string user = null;
+            string password = null;
+            if (!string.IsNullOrEmpty(uri.UserInfo))
+            {
+                var parts = uri.UserInfo.Split(':');
+                user = Uri.UnescapeDataString(parts[0]);
+                if (parts.Length > 1)
+                {
+                    password = Uri.UnescapeDataString(parts[1]);
+                }
+            }
+
+            var port = uri.Port > 0 ? uri.Port : 6379;
+
+            var options = new ConfigurationOptions
+            {
+                AbortOnConnectFail = false,
+                ConnectRetry = 5,
+                ConnectTimeout = 15000,
+                // Railway internal hostnames resolve to IPv6 — let the OS resolve
+                // and allow either family. ResolveDns avoids StackExchange's own
+                // IPv4-only resolution path.
+                ResolveDns = false
+            };
+            options.EndPoints.Add(uri.Host, port);
+
+            // 'default' is the standard Redis ACL username; only set if non-default
+            if (!string.IsNullOrEmpty(user) && user != "default")
+            {
+                options.User = user;
+            }
+            if (!string.IsNullOrEmpty(password))
+            {
+                options.Password = password;
+            }
+
+            // rediss:// scheme means TLS
+            if (uri.Scheme.Equals("rediss", StringComparison.OrdinalIgnoreCase))
+            {
+                options.Ssl = true;
+                options.SslHost = uri.Host;
+            }
+
+            Console.WriteLine($"Redis config -> Host={uri.Host}, Port={port}, User={user ?? "(none)"}, Ssl={options.Ssl}");
+            return options;
         }
 
         private static ConnectionMultiplexer OpenRedisConnection(string hostname)

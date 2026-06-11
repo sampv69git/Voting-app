@@ -1,17 +1,14 @@
 <!DOCTYPE html>
-<html lang="en" ng-app="catsvsdogs">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <title>🏆 Vote Arena — Live Results</title>
-    <meta name="description" content="Watch the battle unfold in real-time! Live voting results for the ultimate showdown.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="keywords" content="voting, results, live, battle">
-    <meta name="author" content="Vote Arena">
-    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <link rel="stylesheet" href="/stylesheets/style.css" />
   </head>
-  <body ng-controller="statsCtrl">
+  <body>
 
-    <!-- Background Vote Ratio -->
+    <!-- Background vote ratio -->
     <div id="background-stats">
       <div id="background-stats-1"></div><!--
       --><div id="background-stats-2"></div>
@@ -20,19 +17,17 @@
     <div id="content-container">
       <div id="content-container-center">
 
-        <!-- Header -->
         <div class="result-header">
           <div class="logo-icon">🏆</div>
           <h1>Battle Results</h1>
           <p class="subtitle">Live Scoreboard</p>
         </div>
 
-        <!-- Scoreboard -->
         <div id="choice">
           <div class="choice cats">
             <span class="choice-emoji">🐱</span>
             <div class="label">Cats</div>
-            <div class="stat">{{aPercent | number:1}}%</div>
+            <div class="stat"><span id="statA">50.0</span>%</div>
             <div class="progress-bar-container">
               <div class="progress-bar-fill" id="progressA" style="width: 50%"></div>
             </div>
@@ -49,7 +44,7 @@
           <div class="choice dogs">
             <span class="choice-emoji">🐶</span>
             <div class="label">Dogs</div>
-            <div class="stat">{{bPercent | number:1}}%</div>
+            <div class="stat"><span id="statB">50.0</span>%</div>
             <div class="progress-bar-container">
               <div class="progress-bar-fill" id="progressB" style="width: 50%"></div>
             </div>
@@ -59,15 +54,77 @@
       </div>
     </div>
 
-    <!-- Vote Count -->
     <div id="result">
-      <span ng-if="total == 0">⏳ Waiting for votes...</span>
-      <span ng-if="total == 1">🎯 {{total}} vote cast</span>
-      <span ng-if="total >= 2">🔥 {{total}} votes cast</span>
+      <span id="totalLabel">⏳ Waiting for votes...</span>
     </div>
 
-    <script src="socket.io.js"></script>
-    <script src="angular.min.js"></script>
-    <script src="app.js"></script>
+    <script>
+      (function () {
+        var bg1 = document.getElementById('background-stats-1');
+        var bg2 = document.getElementById('background-stats-2');
+        var statA = document.getElementById('statA');
+        var statB = document.getElementById('statB');
+        var progressA = document.getElementById('progressA');
+        var progressB = document.getElementById('progressB');
+        var totalLabel = document.getElementById('totalLabel');
+
+        document.body.style.opacity = 1;
+
+        function pct(a, b) {
+          if (a + b > 0) {
+            var pa = Math.round((a / (a + b)) * 1000) / 10; // one decimal
+            return { a: pa, b: Math.round((100 - pa) * 10) / 10 };
+          }
+          return { a: 50, b: 50 };
+        }
+
+        function updateCrown(pa, pb) {
+          document.querySelectorAll('.crown').forEach(function (el) { el.remove(); });
+          if (pa === pb) return;
+          var winnerEl = document.querySelector(pa > pb ? '.cats' : '.dogs');
+          if (winnerEl) {
+            var crown = document.createElement('span');
+            crown.className = 'crown';
+            crown.textContent = '👑';
+            winnerEl.style.position = 'relative';
+            winnerEl.appendChild(crown);
+          }
+        }
+
+        function render(data) {
+          var a = parseInt(data.a || 0, 10);
+          var b = parseInt(data.b || 0, 10);
+          var p = pct(a, b);
+
+          statA.textContent = p.a.toFixed(1);
+          statB.textContent = p.b.toFixed(1);
+          progressA.style.width = p.a + '%';
+          progressB.style.width = p.b + '%';
+          bg1.style.width = p.a + '%';
+          bg2.style.width = p.b + '%';
+
+          var total = a + b;
+          if (total === 0) {
+            totalLabel.textContent = '⏳ Waiting for votes...';
+          } else if (total === 1) {
+            totalLabel.textContent = '🎯 1 vote cast';
+          } else {
+            totalLabel.textContent = '🔥 ' + total + ' votes cast';
+          }
+
+          updateCrown(p.a, p.b);
+        }
+
+        function poll() {
+          fetch('/api/votes', { cache: 'no-store' })
+            .then(function (res) { return res.json(); })
+            .then(function (data) { render(data); })
+            .catch(function (err) { console.log('poll error:', err && err.message); })
+            .finally(function () { setTimeout(poll, 1000); });
+        }
+
+        poll();
+      })();
+    </script>
   </body>
 </html>

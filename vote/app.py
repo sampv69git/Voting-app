@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, make_response, g, jsonify
+from flask import Flask, render_template, request, make_response, g
 from redis import Redis
 import os
 import socket
@@ -20,15 +20,11 @@ app.logger.setLevel(logging.INFO)
 def get_redis():
     if not hasattr(g, 'redis'):
         redis_url = os.getenv('REDIS_URL')
-        redis_host = os.getenv('REDIS_HOST', 'redis')
         if redis_url:
-            # Full Redis URL provided (e.g. from Railway/Render managed Redis)
-            app.logger.info('Connecting to Redis via REDIS_URL')
-            g.redis = Redis.from_url(redis_url, socket_timeout=5, socket_connect_timeout=5)
+            g.redis = Redis.from_url(redis_url, socket_timeout=5)
         else:
-            # Plain hostname (local Docker compose)
-            app.logger.info('Connecting to Redis via host=%s', redis_host)
-            g.redis = Redis(host=redis_host, db=0, socket_timeout=5, socket_connect_timeout=5)
+            redis_host = os.getenv('REDIS_HOST', 'redis')
+            g.redis = Redis(host=redis_host, db=0, socket_timeout=5)
     return g.redis
 
 
@@ -41,22 +37,11 @@ def hello():
     vote = None
 
     if request.method == 'POST':
-        vote = request.form.get('vote')
-        if vote:
-            try:
-                redis = get_redis()
-                data = json.dumps({'voter_id': voter_id, 'vote': vote})
-                redis.rpush('votes', data)
-                queue_len = redis.llen('votes')
-                app.logger.info(
-                    'Vote recorded: choice=%s voter=%s | redis queue length now=%s',
-                    vote, voter_id, queue_len
-                )
-            except Exception as e:
-                # Log loudly so failures are visible in Railway logs
-                app.logger.error('FAILED to push vote to Redis: %s', repr(e))
-        else:
-            app.logger.warning('POST received with no vote field')
+        redis = get_redis()
+        vote = request.form['vote']
+        app.logger.info('Received vote for %s', vote)
+        data = json.dumps({'voter_id': voter_id, 'vote': vote})
+        redis.rpush('votes', data)
 
     resp = make_response(render_template(
         'index.html',
@@ -67,26 +52,6 @@ def hello():
     ))
     resp.set_cookie('voter_id', voter_id)
     return resp
-
-
-@app.route("/healthz")
-def healthz():
-    """Health + Redis connectivity check.
-
-    Open this in a browser. It tries to PING Redis and read the votes queue
-    length, so you can confirm the vote app can actually reach Redis.
-    """
-    info = {"app": "ok"}
-    try:
-        redis = get_redis()
-        info["redis_ping"] = redis.ping()
-        info["votes_queue_length"] = redis.llen('votes')
-        info["redis"] = "ok"
-    except Exception as e:
-        info["redis"] = "error"
-        info["error"] = repr(e)
-        return jsonify(info), 500
-    return jsonify(info)
 
 
 if __name__ == "__main__":

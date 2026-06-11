@@ -37,12 +37,13 @@ async.retry(
       return console.error("Giving up");
     }
     console.log("Connected to db");
-    getVotes(client);
+    client.release();
+    getVotes();
   }
 );
 
-function getVotes(client) {
-  client.query('SELECT vote, COUNT(id) AS count FROM votes GROUP BY vote', [], function(err, result) {
+function getVotes() {
+  pool.query('SELECT vote, COUNT(id) AS count FROM votes GROUP BY vote', [], function(err, result) {
     if (err) {
       console.error("Error performing query: " + err);
     } else {
@@ -50,7 +51,7 @@ function getVotes(client) {
       io.sockets.emit("scores", JSON.stringify(votes));
     }
 
-    setTimeout(function() {getVotes(client) }, 1000);
+    setTimeout(function() {getVotes() }, 1000);
   });
 }
 

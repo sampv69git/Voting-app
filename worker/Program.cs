@@ -19,45 +19,42 @@ namespace Worker
                 var rawDbUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "Server=db;Username=postgres;Password=postgres;";
                 var dbConnString = ConvertPostgresUrl(rawDbUrl);
                 var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST") ?? "redis";
-                
+
+                Console.WriteLine($"Connecting to DB...");
                 var pgsql = OpenDbConnection(dbConnString);
+
+                Console.WriteLine($"Connecting to Redis at {redisHost}...");
                 var redisConn = OpenRedisConnection(redisHost);
                 var redis = redisConn.GetDatabase();
 
-                // Keep alive is not implemented in Npgsql yet. This workaround was recommended:
-                // https://github.com/npgsql/npgsql/issues/1214#issuecomment-235828359
-                var keepAliveCommand = pgsql.CreateCommand();
-                keepAliveCommand.CommandText = "SELECT 1";
-
                 var definition = new { vote = "", voter_id = "" };
+
                 while (true)
                 {
-                    // Slow down to prevent CPU spike, only query each 100ms
                     Thread.Sleep(100);
 
-                    // Reconnect redis if down
-                    if (redisConn == null || !redisConn.IsConnected) {
+                    // Reconnect Redis if needed
+                    if (redisConn == null || !redisConn.IsConnected)
+                    {
                         Console.WriteLine("Reconnecting Redis");
                         redisConn = OpenRedisConnection(redisHost);
                         redis = redisConn.GetDatabase();
                     }
-                    string json = redis.ListLeftPopAsync("votes").Result;
+
+                    string json = redis.ListLeftPop("votes");
                     if (json != null)
                     {
                         var vote = JsonConvert.DeserializeAnonymousType(json, definition);
                         Console.WriteLine($"Processing vote for '{vote.vote}' by '{vote.voter_id}'");
-                        // Reconnect DB if down
-                        if (!pgsql.State.Equals(System.Data.ConnectionState.Open))
+
+                        // Reconnect DB if needed
+                        if (pgsql == null || pgsql.State != System.Data.ConnectionState.Open)
                         {
                             Console.WriteLine("Reconnecting DB");
                             pgsql = OpenDbConnection(dbConnString);
                         }
-                        // Always process the vote after ensuring connection is open
+
                         UpdateVote(pgsql, vote.voter_id, vote.vote);
-                    }
-                    else
-                    {
-                        keepAliveCommand.ExecuteNonQuery();
                     }
                 }
             }
@@ -70,7 +67,7 @@ namespace Worker
 
         private static NpgsqlConnection OpenDbConnection(string connectionString)
         {
-            NpgsqlConnection connection;
+            NpgsqlConnection connection = null;
 
             while (true)
             {
@@ -80,42 +77,52 @@ namespace Worker
                     connection.Open();
                     break;
                 }
-                catch (SocketException)
+                catch (Exception ex)
                 {
-                    Console.Error.WriteLine("Waiting for db");
-                    Thread.Sleep(1000);
-                }
-                catch (DbException)
-                {
-                    Console.Error.WriteLine("Waiting for db");
+                    Console.Error.WriteLine($"Waiting for db: {ex.Message}");
                     Thread.Sleep(1000);
                 }
             }
 
             Console.Error.WriteLine("Connected to db");
 
-            var command = connection.CreateCommand();
-            command.CommandText = @"CREATE TABLE IF NOT EXISTS votes (
-                                        id VARCHAR(255) NOT NULL UNIQUE,
-                                        vote VARCHAR(255) NOT NULL
-                                    )";
-            command.ExecuteNonQuery();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = @"CREATE TABLE IF NOT EXISTS votes (
+                    id VARCHAR(255) NOT NULL UNIQUE,
+                    vote VARCHAR(255) NOT NULL
+                )";
+                command.ExecuteNonQuery();
+            }
 
             return connection;
         }
 
         private static ConnectionMultiplexer OpenRedisConnection(string hostname)
         {
-            // Use IP address to workaround https://github.com/StackExchange/StackExchange.Redis/issues/410
-            var ipAddress = GetIp(hostname);
-            Console.WriteLine($"Found redis at {ipAddress}");
+            // Resolve hostname to IP to work around StackExchange.Redis DNS issue
+            string target = hostname;
+            try
+            {
+                var ipAddress = Dns.GetHostEntryAsync(hostname)
+                    .Result
+                    .AddressList
+                    .First(a => a.AddressFamily == AddressFamily.InterNetwork)
+                    .ToString();
+                target = ipAddress;
+                Console.WriteLine($"Resolved {hostname} -> {target}");
+            }
+            catch
+            {
+                Console.WriteLine($"Could not resolve {hostname}, using as-is");
+            }
 
             while (true)
             {
                 try
                 {
-                    Console.Error.WriteLine("Connecting to redis");
-                    return ConnectionMultiplexer.Connect(ipAddress);
+                    Console.Error.WriteLine($"Connecting to redis at {target}");
+                    return ConnectionMultiplexer.Connect(target);
                 }
                 catch (RedisConnectionException)
                 {
@@ -125,61 +132,57 @@ namespace Worker
             }
         }
 
-        private static string GetIp(string hostname)
-            => Dns.GetHostEntryAsync(hostname)
-                .Result
-                .AddressList
-                .First(a => a.AddressFamily == AddressFamily.InterNetwork)
-                .ToString();
-
         private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
         {
-            var command = connection.CreateCommand();
             try
             {
-                command.CommandText = "INSERT INTO votes (id, vote) VALUES (@id, @vote)";
-                command.Parameters.AddWithValue("@id", voterId);
-                command.Parameters.AddWithValue("@vote", vote);
-                command.ExecuteNonQuery();
+                // Use UPSERT (INSERT ... ON CONFLICT DO UPDATE) — atomic, no race condition
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = @"
+                        INSERT INTO votes (id, vote) VALUES (@id, @vote)
+                        ON CONFLICT (id) DO UPDATE SET vote = EXCLUDED.vote";
+                    command.Parameters.AddWithValue("@id", voterId);
+                    command.Parameters.AddWithValue("@vote", vote);
+                    command.ExecuteNonQuery();
+                }
+                Console.WriteLine($"Vote stored: voter={voterId} choice={vote}");
             }
-            catch (DbException)
+            catch (Exception ex)
             {
-                command.CommandText = "UPDATE votes SET vote = @vote WHERE id = @id";
-                command.ExecuteNonQuery();
-            }
-            finally
-            {
-                command.Dispose();
+                Console.Error.WriteLine($"Failed to store vote: {ex.Message}");
             }
         }
+
         private static string ConvertPostgresUrl(string url)
         {
-            // If it's already in ADO.NET format (contains '='), return as-is
-            if (url.Contains("="))
+            // If it doesn't start with postgres:// or postgresql://, treat as ADO.NET connection string
+            if (!url.StartsWith("postgres://") && !url.StartsWith("postgresql://"))
             {
                 return url;
             }
 
-            // Parse postgres://user:password@host:port/database format
             try
             {
-                var uri = new Uri(url);
+                var uri = new Uri(url.Replace("postgresql://", "postgres://").Replace("postgres://", "http://"));
                 var userInfo = uri.UserInfo.Split(':');
-                var username = userInfo[0];
-                var password = userInfo.Length > 1 ? userInfo[1] : "";
+                var username = Uri.UnescapeDataString(userInfo[0]);
+                var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
                 var host = uri.Host;
                 var port = uri.Port > 0 ? uri.Port : 5432;
                 var database = uri.AbsolutePath.TrimStart('/');
 
                 var connStr = $"Host={host};Port={port};Username={username};Password={password};Database={database}";
 
-                // Add SSL mode for cloud providers
-                if (!host.Equals("db") && !host.Equals("localhost") && !host.Equals("127.0.0.1"))
+                // Add SSL for cloud providers (not local docker db)
+                if (!host.Equals("db", StringComparison.OrdinalIgnoreCase) &&
+                    !host.Equals("localhost", StringComparison.OrdinalIgnoreCase) &&
+                    !host.Equals("127.0.0.1"))
                 {
                     connStr += ";SSL Mode=Require;Trust Server Certificate=true";
                 }
 
-                Console.WriteLine($"Parsed DATABASE_URL -> Host={host}, Port={port}, Database={database}");
+                Console.WriteLine($"Parsed DATABASE_URL -> Host={host}, Port={port}, Database={database}, User={username}");
                 return connStr;
             }
             catch (Exception ex)

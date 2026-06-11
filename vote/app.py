@@ -21,10 +21,15 @@ def get_redis():
     if not hasattr(g, 'redis'):
         redis_url = os.getenv('REDIS_URL')
         if redis_url:
-            g.redis = Redis.from_url(redis_url, socket_timeout=5)
+            g.redis = Redis.from_url(
+                redis_url, socket_timeout=5, socket_connect_timeout=5
+            )
         else:
             redis_host = os.getenv('REDIS_HOST', 'redis')
-            g.redis = Redis(host=redis_host, db=0, socket_timeout=5)
+            g.redis = Redis(
+                host=redis_host, db=0,
+                socket_timeout=5, socket_connect_timeout=5
+            )
     return g.redis
 
 
@@ -37,11 +42,16 @@ def hello():
     vote = None
 
     if request.method == 'POST':
-        redis = get_redis()
-        vote = request.form['vote']
-        app.logger.info('Received vote for %s', vote)
-        data = json.dumps({'voter_id': voter_id, 'vote': vote})
-        redis.rpush('votes', data)
+        vote = request.form.get('vote')
+        if vote:
+            # Never let a Redis hiccup turn into a 500 for the voter.
+            try:
+                redis = get_redis()
+                data = json.dumps({'voter_id': voter_id, 'vote': vote})
+                redis.rpush('votes', data)
+                app.logger.info('Vote recorded: %s (voter %s)', vote, voter_id)
+            except Exception as e:
+                app.logger.error('Could not push vote to Redis: %s', repr(e))
 
     resp = make_response(render_template(
         'index.html',

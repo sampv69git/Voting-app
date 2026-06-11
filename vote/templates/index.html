@@ -118,19 +118,6 @@
 
         </div>
 
-        <!-- Category Selector -->
-        <div class="categories-section">
-          <div class="categories-title">🌍 Switch City Matchup</div>
-          <div class="categories-grid" id="categoriesGrid">
-            <div class="category-chip active" data-a="Paris" data-b="Tokyo" data-emoji-a="🗼" data-emoji-b="🏯" data-tag-a="The timeless City of Light" data-tag-b="Where tradition meets the future">🌍 Paris vs Tokyo</div>
-            <div class="category-chip" data-a="New York" data-b="London" data-emoji-a="🗽" data-emoji-b="🎡" data-tag-a="The city that never sleeps" data-tag-b="History on every corner">🌆 New York vs London</div>
-            <div class="category-chip" data-a="Dubai" data-b="Singapore" data-emoji-a="🏜️" data-emoji-b="🦁" data-tag-a="Skyscrapers in the desert" data-tag-b="The garden city of the future">🏙️ Dubai vs Singapore</div>
-            <div class="category-chip" data-a="Rome" data-b="Barcelona" data-emoji-a="🏛️" data-emoji-b="⛪" data-tag-a="The eternal city" data-tag-b="Art, beaches and Gaudí">🏝️ Rome vs Barcelona</div>
-            <div class="category-chip" data-a="Sydney" data-b="Rio" data-emoji-a="🌊" data-emoji-b="🏖️" data-tag-a="Harbour, surf and sun" data-tag-b="Carnival by the sea">🌞 Sydney vs Rio</div>
-            <div class="category-chip" data-a="Cairo" data-b="Istanbul" data-emoji-a="🐫" data-emoji-b="🕌" data-tag-a="Where the pyramids rise" data-tag-b="Where two continents meet">🌐 Cairo vs Istanbul</div>
-            <div class="category-chip" data-a="Cape Town" data-b="Mumbai" data-emoji-a="🏔️" data-emoji-b="🛕" data-tag-a="Mountains meet the ocean" data-tag-b="The city of dreams">🌏 Cape Town vs Mumbai</div>
-            <div class="category-chip" data-a="Amsterdam" data-b="Venice" data-emoji-a="🚲" data-emoji-b="🛶" data-tag-a="Canals and culture" data-tag-b="The floating city">🌉 Amsterdam vs Venice</div>
-          </div>
         </div>
 
         <!-- Fun Fact Ticker -->
@@ -162,7 +149,7 @@
       totalVotes: parseInt(localStorage.getItem('voteArena_total') || '0'),
       streak: parseInt(localStorage.getItem('voteArena_streak') || '0'),
       soundOn: localStorage.getItem('voteArena_sound') !== 'off',
-      currentCategory: 'Cats vs Dogs',
+      currentCategory: 'Paris vs Tokyo',
       sessionStart: Date.now(),
       voted: false
     };
@@ -404,58 +391,7 @@
     // ===============================
     //  CATEGORY SWITCHING
     // ===============================
-    const categoryChips = document.querySelectorAll('.category-chip');
-    categoryChips.forEach(chip => {
-      chip.addEventListener('click', () => {
-        playClickSound();
-
-        // Update active state
-        categoryChips.forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-
-        // Update card content with animation
-        const data = chip.dataset;
-        const arena = document.getElementById('battleArena');
-        arena.style.opacity = '0';
-        arena.style.transform = 'scale(0.95)';
-
-        setTimeout(() => {
-          document.getElementById('emojiA').textContent = data.emojiA;
-          document.getElementById('emojiB').textContent = data.emojiB;
-          document.getElementById('nameA').textContent = data.a;
-          document.getElementById('nameB').textContent = data.b;
-          document.getElementById('taglineA').textContent = data.tagA;
-          document.getElementById('taglineB').textContent = data.tagB;
-          document.getElementById('voteBtnA').innerHTML = `⚡ Vote ${data.a}`;
-          document.getElementById('voteBtnB').innerHTML = `⚡ Vote ${data.b}`;
-
-          // Randomize stats for fun
-          document.getElementById('powerA').textContent = Math.floor(Math.random() * 30 + 70);
-          document.getElementById('charmA').textContent = Math.floor(Math.random() * 30 + 70);
-          document.getElementById('chaosA').textContent = Math.floor(Math.random() * 30 + 70);
-          document.getElementById('powerB').textContent = Math.floor(Math.random() * 30 + 70);
-          document.getElementById('charmB').textContent = Math.floor(Math.random() * 30 + 70);
-          document.getElementById('chaosB').textContent = Math.floor(Math.random() * 30 + 70);
-
-          // Reset voted state
-          document.getElementById('voteCardA').classList.remove('voted', 'dimmed');
-          document.getElementById('voteCardB').classList.remove('voted', 'dimmed');
-          document.getElementById('voteBtnA').disabled = false;
-          document.getElementById('voteBtnB').disabled = false;
-          state.voted = false;
-
-          arena.style.opacity = '1';
-          arena.style.transform = 'scale(1)';
-        }, 300);
-
-        // Update the hidden form values
-        document.querySelector('#choice .a').value = 'a';
-        document.querySelector('#choice .b').value = 'b';
-
-        state.currentCategory = `${data.a} vs ${data.b}`;
-        showRandomFact();
-      });
-    });
+    // (City matchup switcher removed — this is a single Paris vs Tokyo vote.)
 
     // ===============================
     //  FUN FACTS

@@ -1,6 +1,6 @@
 # 🗳️ Distributed Voting App
 
-A **multi-container distributed voting application** built and maintained by **[@shreyastk](https://github.com/shreyastk)** as a hands-on DevOps project. This app demonstrates real-world containerization, microservices architecture, and CI/CD automation using Docker and GitHub Actions.
+A **multi-container distributed voting application** as a hands-on DevOps project. This app demonstrates real-world containerization, microservices architecture, and CI/CD automation using Docker and GitHub Actions.
 
 ---
 
